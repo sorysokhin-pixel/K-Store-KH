@@ -218,7 +218,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                 <Lock className="w-5 h-5" />
               </div>
               <h2 className="text-lg font-black text-white">
-                {lang === 'kh' ? 'ចូលគណនី RaZy KH' : 'Cloud-Based Authentication'}
+                {lang === 'kh' ? 'ចូលគណនី K-STORE KH' : 'Cloud-Based Authentication'}
               </h2>
               <p className="text-xs text-stone-400 mt-1">
                 {lang === 'kh'
