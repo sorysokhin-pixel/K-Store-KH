@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role-based access control and encrypted sensitive fields",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "enum": ["admin", "moderator", "user"] },
+        "encryptedData": { "type": "string", "maxLength": 4096, "description": "AES-GCM encrypted sensitive personal data" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Immutable audit trail of user and system events for real-time security monitoring",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 256 },
+        "action": { "type": "string", "maxLength": 100 },
+        "details": { "type": "string", "maxLength": 2048 },
+        "level": { "type": "string", "enum": ["info", "security", "warning", "action"] },
+        "timestamp": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "action", "timestamp", "level"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Top-up order and KHQR transaction records",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 256 },
+        "gameId": { "type": "string", "maxLength": 64 },
+        "gameTitle": { "type": "string", "maxLength": 128 },
+        "packageTitle": { "type": "string", "maxLength": 128 },
+        "amountUsd": { "type": "number" },
+        "playerId": { "type": "string", "maxLength": 128 },
+        "zoneId": { "type": "string", "maxLength": 64 },
+        "encryptedPlayerSecret": { "type": "string", "maxLength": 4096, "description": "Client-side encrypted voucher / game pass credential" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed", "cancelled"] },
+        "paymentMethod": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["orderId", "userId", "gameId", "amountUsd", "status", "paymentMethod"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Game top-up product item with image URL, details, and stock management",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 128 },
+        "titleKh": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "enum": ["featured", "all", "panel", "robux"] },
+        "badge": { "type": "string", "maxLength": 64 },
+        "badgeKh": { "type": "string", "maxLength": 64 },
+        "badgeType": { "type": "string", "maxLength": 32 },
+        "icon": { "type": "string", "maxLength": 32 },
+        "coverImage": { "type": "string", "maxLength": 1024 },
+        "needsZoneId": { "type": "boolean" },
+        "zonePlaceholder": { "type": "string", "maxLength": 128 },
+        "isHot": { "type": "boolean" },
+        "stockCount": { "type": "number" },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "title", "category", "coverImage"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Admin registry document for trusted RBAC authorization",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "role": { "type": "string", "enum": ["superadmin", "admin"] },
+        "grantedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Individual user profiles with private encrypted data"
+    },
+    "/activity_logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Real-time audit log stream visible to users (their own) and admins (all)"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Top-up orders and KHQR transactions"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Dynamic game catalog with real-time stock levels"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Elevated admin documents indexed by user uid"
+    }
+  }
+}

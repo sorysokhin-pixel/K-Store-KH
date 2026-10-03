@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" type="image/jpeg" href="/logo.jpg" />
+    <link rel="apple-touch-icon" href="/logo.jpg" />
+    <script>
+      (function() {
+        try {
+          var nativeFetch = window.fetch ? window.fetch.bind(window) : undefined;
+          var currentFetch = nativeFetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return currentFetch;
+            },
+            set: function(fn) {
+              currentFetch = fn;
+            },
+            configurable: true,
+            enumerable: true
+          });
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            try {
+              var protoDesc = Object.getOwnPropertyDescriptor(Window.prototype, 'fetch');
+              if (protoDesc && protoDesc.configurable) {
+                Object.defineProperty(Window.prototype, 'fetch', {
+                  get: function() {
+                    return currentFetch;
+                  },
+                  set: function(fn) {
+                    currentFetch = fn;
+                  },
+                  configurable: true,
+                  enumerable: true
+                });
+              }
+            } catch (_) {}
+          }
+
+          // Suppress benign AbortError / "signal is aborted without reason"
+          window.addEventListener('unhandledrejection', function(event) {
+            var reason = event.reason;
+            var msg = reason ? (reason.message || String(reason)) : '';
+            if (
+              (reason && reason.name === 'AbortError') ||
+              msg.indexOf('aborted') !== -1 ||
+              msg.indexOf('signal is aborted') !== -1
+            ) {
+              event.preventDefault();
+              if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            }
+          });
+
+          window.addEventListener('error', function(event) {
+            var msg = event.message || '';
+            if (msg.indexOf('aborted') !== -1 || msg.indexOf('signal is aborted') !== -1) {
+              event.preventDefault();
+              if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            }
+          });
+        } catch (e) {
+          console.warn('Fetch setter shim error:', e);
+        }
+      })();
+    </script>
+    <title>K-STORE KH - Game Top-Up & Digital Store</title>
+    <meta name="description" content="Fast, secure game top-up platform with KHQR payment, encrypted user profiles, role-based access control, product stock management, and real-time security logging." />
+    <meta property="og:title" content="K-STORE KH - Game Top-Up & Digital Store" />
+    <meta property="og:description" content="Fast, secure game top-up platform with KHQR payment, encrypted user profiles, role-based access control, product stock management, and real-time security logging." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#0f0e0c] text-white font-sans antialiased selection:bg-amber-500 selection:text-black">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

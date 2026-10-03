@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'sorysokhin@gmail.com')
+      );
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(userId);
+      allow delete: if isAdmin();
+    }
+
+    // Activity Logs Collection
+    match /activity_logs/{logId} {
+      allow get, list: if true;
+      allow create: if isValidId(logId);
+      allow update, delete: if isAdmin();
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(orderId);
+      allow delete: if isAdmin();
+    }
+
+    // Products / Game Catalog Collection
+    match /products/{productId} {
+      allow read, write: if true;
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read, write: if true;
+    }
+  }
+}

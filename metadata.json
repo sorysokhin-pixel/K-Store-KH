@@ -1,0 +1,6 @@
+{
+  "name": "K-STORE KH - Game Top-Up & Digital Store",
+  "description": "Fast, secure game top-up platform with KHQR payment, encrypted user profiles, role-based access control, and real-time security activity logging.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
