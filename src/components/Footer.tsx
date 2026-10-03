@@ -85,7 +85,7 @@ export const Footer: React.FC<FooterProps> = ({ lang, theme = 'dark', onOpenAdmi
         href="https://t.me/sorysokhin"
         target="_blank"
         rel="noreferrer"
-        className="fixed bottom-5 right-5 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 p-[2px] shadow-2xl shadow-amber-500/30 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center group"
+        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 p-[2px] shadow-2xl shadow-amber-500/30 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center group"
         title="24/7 Telegram Live Support @sorysokhin"
       >
         <div className="w-full h-full rounded-full bg-[#17140f] flex items-center justify-center relative overflow-hidden border border-amber-400/40">

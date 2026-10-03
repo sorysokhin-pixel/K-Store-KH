@@ -404,6 +404,33 @@ app.post('/api/admin/verify', (req, res) => {
   res.json({ ok: true, isValid: isDefaultMatch });
 });
 
+// 5. Custom / Edited Products Storage for Multi-Device Sync
+let customServerProducts: any[] = [];
+
+app.get('/api/admin/products', (req, res) => {
+  res.json({ ok: true, products: customServerProducts });
+});
+
+app.post('/api/admin/products', (req, res) => {
+  const product = req.body;
+  if (product && product.id) {
+    const idx = customServerProducts.findIndex((p) => p.id === product.id);
+    if (idx >= 0) {
+      customServerProducts[idx] = { ...customServerProducts[idx], ...product };
+    } else {
+      customServerProducts.push(product);
+    }
+    return res.json({ ok: true, products: customServerProducts });
+  }
+  res.status(400).json({ ok: false, error: 'Invalid product data' });
+});
+
+app.delete('/api/admin/products/:id', (req, res) => {
+  const { id } = req.params;
+  customServerProducts = customServerProducts.filter((p) => p.id !== id);
+  res.json({ ok: true, products: customServerProducts });
+});
+
 // -------------------------------------------------------------
 // Khmer-TopUp API Integration Endpoints (https://khmer-topup.com/api/v1)
 // -------------------------------------------------------------

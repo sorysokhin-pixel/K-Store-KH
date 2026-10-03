@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Lock, User, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowRight } from 'lucide-react';
-import { verifyAdminCredentials, setAdminSession, isCustomCredentialsSet } from '../services/adminAuthService';
+import { verifyAdminCredentialsAsync, setAdminSession, isCustomCredentialsSet } from '../services/adminAuthService';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   const isCustom = isCustomCredentialsSet();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -32,13 +32,13 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
       return;
     }
     if (!code.trim()) {
-      setErrorMsg('សូមបញ្ចូលលេខកូដសម្ងាត់ (Security Code)!');
+      setErrorMsg('សូមបញ្ចូលលេខកូដសម្ងាត់ (Security Code / Password)!');
       return;
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      const isValid = verifyAdminCredentials(username, code);
+    try {
+      const isValid = await verifyAdminCredentialsAsync(username, code);
       if (isValid) {
         setAdminSession(true);
         setIsLoading(false);
@@ -47,7 +47,10 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
         setIsLoading(false);
         setErrorMsg('Username ឬលេខកូដសម្ងាត់មិនត្រឹមត្រូវទេ! សូមព្យាយាមម្តងទៀត។');
       }
-    }, 400);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMsg(err.message || 'ការផ្ទៀងផ្ទាត់បរាជ័យ');
+    }
   };
 
   return (

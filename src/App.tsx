@@ -79,6 +79,8 @@ export default function App() {
 
   // Modals
   const [selectedGameForTopup, setSelectedGameForTopup] = useState<GameItem | null>(null);
+  const [pendingGameForTopup, setPendingGameForTopup] = useState<GameItem | null>(null);
+  const [authPromptMessage, setAuthPromptMessage] = useState<string>('');
   const [activeKhqrOrder, setActiveKhqrOrder] = useState<OrderItem | null>(null);
   const [completedLicenseKeyOrder, setCompletedLicenseKeyOrder] = useState<OrderItem | null>(null);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -97,24 +99,67 @@ export default function App() {
     });
   };
 
-  // Auth observer
+  // Persistent User Auth Observer with LocalStorage Auto-Login
   useEffect(() => {
+    // 1. Immediately restore session from localStorage for instant auto-login
+    const savedUserRaw = localStorage.getItem('kstore_user_session');
+    if (savedUserRaw) {
+      try {
+        const parsed = JSON.parse(savedUserRaw);
+        if (parsed && parsed.uid) {
+          setCurrentUser(parsed);
+        }
+      } catch (_) {}
+    }
+
+    // 2. Also listen for Firebase Auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         let profile = await getUserProfile(fbUser.uid);
         if (!profile) {
           profile = await upsertUserProfile({
             uid: fbUser.uid,
-            email: fbUser.email || 'user@razykh.app',
+            email: fbUser.email || 'user@kstore.kh',
             displayName: fbUser.displayName || 'K-STORE Gamer',
             photoURL: fbUser.photoURL || '',
           });
         }
         setCurrentUser(profile);
+        localStorage.setItem('kstore_user_session', JSON.stringify(profile));
       }
     });
     return () => unsubscribe();
   }, []);
+
+  // Handle user auth state change
+  const handleUserChanged = (user: UserProfile | null) => {
+    setCurrentUser(user);
+    if (user) {
+      localStorage.setItem('kstore_user_session', JSON.stringify(user));
+      // Auto-resume purchase if user clicked a game before login
+      if (pendingGameForTopup) {
+        setSelectedGameForTopup(pendingGameForTopup);
+        setPendingGameForTopup(null);
+      }
+    } else {
+      localStorage.removeItem('kstore_user_session');
+    }
+  };
+
+  // Mandatory Login Gate before Purchasing Top-up
+  const handleSelectGameForTopup = (game: GameItem) => {
+    if (!currentUser) {
+      setPendingGameForTopup(game);
+      setAuthPromptMessage(
+        lang === 'kh'
+          ? '🔒 សូមចូលគណនី (Login) ឬ ចុះឈ្មោះជាមុនសិន ដើម្បីទិញសេវាកម្ម!'
+          : '🔒 Please Login or Sign Up first to purchase services!'
+      );
+      setIsAuthOpen(true);
+      return;
+    }
+    setSelectedGameForTopup(game);
+  };
 
   const isAdmin =
     isAdminAuthenticated ||
@@ -154,7 +199,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAdminAuthenticated]);
 
-  // Load real catalog on startup directly from Khmer-TopUp crawler
+  // Load real catalog on startup directly from Khmer-TopUp crawler + server custom products
   useEffect(() => {
     let isMounted = true;
     async function loadCatalog() {
@@ -167,6 +212,22 @@ export default function App() {
           });
           batchSyncGamesToFirestore(res.games).catch((e) => console.warn('Firestore sync background:', e));
         }
+
+        // Fetch custom products stored on Server API for cross-device synchronization
+        try {
+          const apiProdRes = await fetch('/api/admin/products');
+          if (apiProdRes.ok) {
+            const apiProdData = await apiProdRes.json();
+            if (isMounted && apiProdData && Array.isArray(apiProdData.products) && apiProdData.products.length > 0) {
+              setCloudProducts((prev) => {
+                const map = new Map<string, GameItem>();
+                prev.forEach((p) => map.set(p.id, p));
+                apiProdData.products.forEach((p: GameItem) => map.set(p.id, p));
+                return Array.from(map.values());
+              });
+            }
+          }
+        } catch (_) {}
       } catch (err) {
         console.warn('Failed to load live catalog:', err);
       } finally {
@@ -396,7 +457,7 @@ export default function App() {
             if (!gameId) return;
             const target = activeProductsList.find((g) => g.id === gameId);
             if (target) {
-              setSelectedGameForTopup(target);
+              handleSelectGameForTopup(target);
             } else {
               const el = document.getElementById('games-section');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -509,7 +570,7 @@ export default function App() {
                   theme={theme}
                   isFavorite={favorites.includes(game.id)}
                   onToggleFavorite={toggleFavorite}
-                  onSelectGame={setSelectedGameForTopup}
+                  onSelectGame={handleSelectGameForTopup}
                 />
               ))}
             </div>
@@ -592,8 +653,12 @@ export default function App() {
         <UserAuthModal
           lang={lang}
           currentUser={currentUser}
-          onClose={() => setIsAuthOpen(false)}
-          onUserChanged={setCurrentUser}
+          promptMessage={authPromptMessage}
+          onClose={() => {
+            setIsAuthOpen(false);
+            setAuthPromptMessage('');
+          }}
+          onUserChanged={handleUserChanged}
         />
       )}
 

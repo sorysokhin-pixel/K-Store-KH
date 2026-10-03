@@ -63,6 +63,38 @@ export function saveStoredAdminCredentials(creds: AdminCredentials): void {
   }
 }
 
+export async function verifyAdminCredentialsAsync(username: string, code: string): Promise<boolean> {
+  const inUser = username.trim();
+  const inCode = code.trim();
+
+  // 1. Try server verification first so any device can authenticate
+  try {
+    const res = await fetch('/api/admin/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: inUser, code: inCode }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.isValid) {
+        saveStoredAdminCredentials({ username: inUser, code: inCode, isCustom: true });
+        setAdminSession(true);
+        return true;
+      }
+      return false;
+    }
+  } catch (err) {
+    console.warn('Server verify check error, using local fallback:', err);
+  }
+
+  // 2. Local fallback
+  const validLocal = verifyAdminCredentials(inUser, inCode);
+  if (validLocal) {
+    setAdminSession(true);
+  }
+  return validLocal;
+}
+
 export function verifyAdminCredentials(username: string, code: string): boolean {
   const stored = getStoredAdminCredentials();
   const inputUser = username.trim().toLowerCase();

@@ -31226,6 +31226,28 @@ app.post("/api/admin/verify", (req, res) => {
   const isDefaultMatch = inUser === "admin" && inCode === "888888" || inUser === "sorysokhin" && inCode === "123456";
   res.json({ ok: true, isValid: isDefaultMatch });
 });
+var customServerProducts = [];
+app.get("/api/admin/products", (req, res) => {
+  res.json({ ok: true, products: customServerProducts });
+});
+app.post("/api/admin/products", (req, res) => {
+  const product = req.body;
+  if (product && product.id) {
+    const idx = customServerProducts.findIndex((p) => p.id === product.id);
+    if (idx >= 0) {
+      customServerProducts[idx] = { ...customServerProducts[idx], ...product };
+    } else {
+      customServerProducts.push(product);
+    }
+    return res.json({ ok: true, products: customServerProducts });
+  }
+  res.status(400).json({ ok: false, error: "Invalid product data" });
+});
+app.delete("/api/admin/products/:id", (req, res) => {
+  const { id } = req.params;
+  customServerProducts = customServerProducts.filter((p) => p.id !== id);
+  res.json({ ok: true, products: customServerProducts });
+});
 var khmerTopupSettings = {
   apiKey: "",
   baseUrl: "https://khmer-topup.com/api/v1",

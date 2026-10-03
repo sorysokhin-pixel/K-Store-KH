@@ -121,12 +121,23 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right Action Icons & Auth */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {/* Admin Dashboard Quick Button (When Admin is Authenticated) */}
+          {isAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-black font-black text-[11px] shadow-sm transition active:scale-95 animate-pulse"
+              title="Open Admin Dashboard"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>ADMIN</span>
+            </button>
+          )}
 
-          {/* Theme Toggle Button (Sun / Moon) */}
+          {/* Theme Toggle Button (Sun / Moon) - Hidden on extra-small mobile, shown on sm+ */}
           <button
             onClick={onToggleTheme}
-            className={`p-2 rounded-lg border transition duration-200 active:scale-90 ${
+            className={`hidden sm:flex p-2 rounded-lg border transition duration-200 active:scale-90 ${
               isDark
                 ? 'bg-[#201d18] hover:bg-[#2c2821] border-stone-800 text-amber-400'
                 : 'bg-stone-100 hover:bg-stone-200 border-stone-300 text-amber-600'
@@ -141,10 +152,10 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Encrypted Vault Button */}
+          {/* Encrypted Vault Button - Hidden on mobile, shown on md+ */}
           <button
             onClick={onOpenVault}
-            className={`flex items-center gap-1 p-2 rounded-lg border text-xs transition ${
+            className={`hidden md:flex items-center gap-1 p-2 rounded-lg border text-xs transition ${
               isDark
                 ? 'bg-[#201d18] hover:bg-[#2c2821] border-stone-800 text-stone-300 hover:text-amber-400'
                 : 'bg-stone-100 hover:bg-stone-200 border-stone-300 text-stone-700'
@@ -158,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Orders / History Button */}
           <button
             onClick={onOpenOrders}
-            className={`relative p-2 rounded-lg border transition ${
+            className={`relative p-1.5 sm:p-2 rounded-lg border transition ${
               isDark
                 ? 'bg-[#201d18] hover:bg-[#2c2821] border-stone-800 text-stone-300 hover:text-white'
                 : 'bg-stone-100 hover:bg-stone-200 border-stone-300 text-stone-700'
@@ -173,12 +184,12 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Telegram Channel Button -> Admin @sorysokhin */}
+          {/* Telegram Channel Button - Hidden on small mobile to avoid cramped header */}
           <a
             href="https://t.me/sorysokhin"
             target="_blank"
             rel="noreferrer"
-            className={`p-2 rounded-lg border transition ${
+            className={`hidden sm:flex p-2 rounded-lg border transition ${
               isDark
                 ? 'bg-[#201d18] hover:bg-sky-950 border-stone-800 hover:border-sky-500/40 text-sky-400'
                 : 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-600'
@@ -190,13 +201,13 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Language Toggle KH | EN */}
           <div
-            className={`flex items-center rounded-lg p-0.5 border text-xs font-bold ${
+            className={`flex items-center rounded-lg p-0.5 border text-xs font-bold shrink-0 ${
               isDark ? 'bg-[#201d18] border-stone-800' : 'bg-stone-100 border-stone-300'
             }`}
           >
             <button
               onClick={() => onToggleLang('kh')}
-              className={`px-2 py-1 rounded-md transition ${
+              className={`px-1.5 sm:px-2 py-1 rounded-md text-[11px] sm:text-xs transition ${
                 lang === 'kh'
                   ? 'bg-amber-400 text-black shadow font-black'
                   : 'text-stone-400 hover:text-stone-900'
@@ -206,7 +217,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               onClick={() => onToggleLang('en')}
-              className={`px-2 py-1 rounded-md transition ${
+              className={`px-1.5 sm:px-2 py-1 rounded-md text-[11px] sm:text-xs transition ${
                 lang === 'en'
                   ? 'bg-amber-400 text-black shadow font-black'
                   : 'text-stone-400 hover:text-stone-900'
@@ -219,22 +230,19 @@ export const Header: React.FC<HeaderProps> = ({
           {/* User Profile / Auth Button */}
           <button
             onClick={onOpenAuth}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-xs transition shadow-md shadow-amber-500/10"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-xs transition shadow-md shadow-amber-500/10 shrink-0"
           >
             {currentUser ? (
               <>
                 <div className="w-5 h-5 rounded-full bg-black/20 flex items-center justify-center text-[10px] font-black uppercase text-black">
-                  {currentUser.displayName.charAt(0)}
+                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <span className="max-w-[70px] sm:max-w-[100px] truncate">{currentUser.displayName}</span>
-                <span className="text-[9px] px-1 py-0.2 rounded bg-black/25 text-black font-extrabold uppercase">
-                  {currentUser.role}
-                </span>
+                <span className="max-w-[60px] sm:max-w-[100px] truncate">{currentUser.displayName}</span>
               </>
             ) : (
               <>
-                <UserCheck className="w-4 h-4" />
-                <span className="hidden xs:inline">{lang === 'kh' ? 'ចូលគណនី' : 'Login'}</span>
+                <UserCheck className="w-4 h-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs">{lang === 'kh' ? 'ចូល' : 'Login'}</span>
               </>
             )}
           </button>

@@ -326,6 +326,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       };
 
       await saveProduct(prodToSave);
+      // Also sync to server API for cross-device persistence
+      fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prodToSave),
+      }).catch(() => {});
       setEditingProduct(null);
     } catch (err) {
       console.error('Failed to save product:', err);
@@ -337,6 +343,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleDeleteProd = async (prodId: string) => {
     if (confirm('តើអ្នកពិតជាចង់លុប Product នេះមែនទេ?')) {
       await deleteProduct(prodId);
+      fetch(`/api/admin/products/${prodId}`, { method: 'DELETE' }).catch(() => {});
     }
   };
 
