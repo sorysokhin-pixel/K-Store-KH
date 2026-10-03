@@ -18,6 +18,8 @@ let paymentSettings = {
   gatewayUrl: 'https://khmer-system.com',
   abaApiKey: 'PK_7213c309db731dc63fe1e1faed0a971ef8de5612',
   abaMerchantId: 'Yuqg4u',
+  abaAccount: 'sokhin_sory@abaa',
+  abaAccountName: 'SORY SOKHIN',
   bakongToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMmY4NDM5YjkwNDEwNDUwNyJ9LCJpYXQiOjE3Nzc5NjA1MjMsImV4cCI6MTc4NTczNjUzM30.jbSLWaRmlRyyh9txBw3B5b6ThL0n4VrCFgRkhfWyASw',
   bakongUid: 'sokhin_sory@bkrt',
   bakongName: 'SORY SOKHIN',
@@ -80,24 +82,34 @@ function generateBakongKHQR(
   return str + crc16Ccitt(str);
 }
 
-// Helper to make HTTPS requests to https://khmer-system.com
+// Cloudflare IP bypass for khmer-system.com to evade local ISP DNS sinkhole (Smart Axiata, etc.)
+const KHMER_SYSTEM_CLOUDFLARE_IPS = ['104.26.9.244', '104.26.8.244', '172.67.68.92'];
+
+// Helper to make HTTPS requests to https://khmer-system.com matching Python bot
 function makeKhmerSystemRequest(endpoint: string, payload: Record<string, any>): Promise<any> {
   return new Promise((resolve, reject) => {
     const dataStr = JSON.stringify(payload);
-    const url = new URL(endpoint, paymentSettings.gatewayUrl);
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+    // Connect directly to Cloudflare edge IP with Host header & SNI
+    const targetHost = KHMER_SYSTEM_CLOUDFLARE_IPS[0];
 
     const req = https.request(
-      url,
       {
+        host: targetHost,
+        port: 443,
+        path: cleanEndpoint,
         method: 'POST',
+        servername: 'khmer-system.com',
         rejectUnauthorized: false,
         headers: {
+          'Host': 'khmer-system.com',
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(dataStr),
           'X-API-Key': paymentSettings.abaApiKey,
           'User-Agent': 'Khmer-System-Telegram-Bot/2.0',
         },
-        timeout: 8000,
+        timeout: 10000,
       },
       (res) => {
         let body = '';
@@ -112,7 +124,43 @@ function makeKhmerSystemRequest(endpoint: string, payload: Record<string, any>):
       }
     );
 
-    req.on('error', (err) => reject(err));
+    req.on('error', (err) => {
+      // Fallback to domain name URL if direct IP fails
+      try {
+        const url = new URL(cleanEndpoint, paymentSettings.gatewayUrl);
+        const fbReq = https.request(
+          url,
+          {
+            method: 'POST',
+            rejectUnauthorized: false,
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(dataStr),
+              'X-API-Key': paymentSettings.abaApiKey,
+              'User-Agent': 'Khmer-System-Telegram-Bot/2.0',
+            },
+            timeout: 10000,
+          },
+          (fbRes) => {
+            let fbBody = '';
+            fbRes.on('data', (c) => (fbBody += c));
+            fbRes.on('end', () => {
+              try {
+                resolve(JSON.parse(fbBody));
+              } catch {
+                resolve({ raw: fbBody, statusCode: fbRes.statusCode });
+              }
+            });
+          }
+        );
+        fbReq.on('error', (fbErr) => reject(fbErr));
+        fbReq.write(dataStr);
+        fbReq.end();
+      } catch (e) {
+        reject(err);
+      }
+    });
+
     req.on('timeout', () => {
       req.destroy();
       reject(new Error('Request timeout to Khmer-System Gateway'));
@@ -188,9 +236,13 @@ app.post('/api/payment/generate-qr', async (req, res) => {
     }
 
     // Direct NBC-compliant KHQR generation (Scannable by ABA Mobile & Bakong)
+    const rawAba = (paymentSettings.abaAccount || paymentSettings.bakongUid?.replace(/@.*$/, '@abaa') || 'sokhin_sory@abaa').trim();
+    const abaAccount = rawAba.includes('@') ? rawAba : `${rawAba}@abaa`;
+    const abaName = (paymentSettings.abaAccountName || paymentSettings.botName || 'SORY SOKHIN').trim();
+
     const khqrString = generateBakongKHQR(
-      paymentSettings.bakongUid || 'sokhin_sory@bkrt',
-      paymentSettings.bakongName || paymentSettings.botName || 'SORY SOKHIN',
+      abaAccount,
+      abaName,
       amt,
       orderId,
       true
@@ -203,8 +255,8 @@ app.post('/api/payment/generate-qr', async (req, res) => {
       amount: amt,
       currency: 'USD',
       qr_string: khqrString,
-      merchant_name: paymentSettings.botName || paymentSettings.bakongName || 'SORY SOKHIN',
-      pay_url: `aba://pay?amount=${amt.toFixed(2)}&currency=USD&ref=${orderId}&merchant=${encodeURIComponent(paymentSettings.botName || 'SORY SOKHIN')}`,
+      merchant_name: abaName,
+      pay_url: `aba://pay?amount=${amt.toFixed(2)}&currency=USD&ref=${orderId}&merchant=${encodeURIComponent(abaName)}`,
     });
   } catch (error: any) {
     console.error('Error generating QR:', error);
@@ -268,6 +320,8 @@ app.get('/api/payment/settings', (req, res) => {
       activeProvider: paymentSettings.activeProvider,
       gatewayUrl: paymentSettings.gatewayUrl,
       abaMerchantId: paymentSettings.abaMerchantId,
+      abaAccount: paymentSettings.abaAccount,
+      abaAccountName: paymentSettings.abaAccountName,
       abaApiKeyMasked: `${paymentSettings.abaApiKey.slice(0, 6)}...${paymentSettings.abaApiKey.slice(-4)}`,
       bakongUid: paymentSettings.bakongUid,
       bakongName: paymentSettings.bakongName,
@@ -282,6 +336,8 @@ app.post('/api/payment/settings', (req, res) => {
     if (updates.activeProvider) paymentSettings.activeProvider = updates.activeProvider;
     if (updates.abaApiKey) paymentSettings.abaApiKey = updates.abaApiKey;
     if (updates.abaMerchantId) paymentSettings.abaMerchantId = updates.abaMerchantId;
+    if (updates.abaAccount) paymentSettings.abaAccount = updates.abaAccount;
+    if (updates.abaAccountName) paymentSettings.abaAccountName = updates.abaAccountName;
     if (updates.bakongToken) paymentSettings.bakongToken = updates.bakongToken;
     if (updates.bakongUid) paymentSettings.bakongUid = updates.bakongUid;
     if (updates.bakongName) paymentSettings.bakongName = updates.bakongName;

@@ -1281,10 +1281,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                         <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                          ABA PayWay KHQR Gateway
+                          ABA Bank KHQR & PayWay Gateway
                         </h4>
                       </div>
-                      <span className="text-[10px] text-blue-400 font-bold">khmer-system.com</span>
+                      <span className="text-[10px] text-blue-400 font-bold">ABA Mobile Official</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-stone-300 text-xs font-bold mb-1">
+                        លេខគណនី ABA Bank / ID (e.g. 001234567 ឬ sokhin_sory@abaa):
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentConfig.abaAccount || ''}
+                        onChange={(e) => setPaymentConfig({ ...paymentConfig, abaAccount: e.target.value })}
+                        placeholder="ឧ. 001234567 ឬ sokhin_sory@abaa"
+                        className="w-full px-3 py-2 bg-[#12110e] border border-blue-500/50 rounded-lg text-white font-mono text-xs focus:border-blue-400 focus:outline-none"
+                        required
+                      />
+                      <p className="text-[10px] text-blue-300/80 mt-1">
+                        ℹ️ បញ្ចូលលេខគណនី ABA ៩ ខ្ទង់ ឬ Bakong ID របស់ ABA ដើម្បីឲ្យពេលស្កេនលោតចូល ABA Bank ផ្ទាល់។
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-stone-300 text-xs font-bold mb-1">
+                        ឈ្មោះម្ចាស់គណនី ABA (Account Name):
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentConfig.abaAccountName || ''}
+                        onChange={(e) => setPaymentConfig({ ...paymentConfig, abaAccountName: e.target.value })}
+                        placeholder="ឧ. SORY SOKHIN"
+                        className="w-full px-3 py-2 bg-[#12110e] border border-stone-700 rounded-lg text-white text-xs font-bold focus:border-amber-500 focus:outline-none"
+                        required
+                      />
                     </div>
 
                     <div>
@@ -1296,7 +1327,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         value={paymentConfig.abaApiKey}
                         onChange={(e) => setPaymentConfig({ ...paymentConfig, abaApiKey: e.target.value })}
                         className="w-full px-3 py-2 bg-[#12110e] border border-stone-700 rounded-lg text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
-                        required
                       />
                     </div>
 
@@ -1309,7 +1339,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         value={paymentConfig.abaMerchantId}
                         onChange={(e) => setPaymentConfig({ ...paymentConfig, abaMerchantId: e.target.value })}
                         className="w-full px-3 py-2 bg-[#12110e] border border-stone-700 rounded-lg text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
-                        required
                       />
                     </div>
 
@@ -1322,7 +1351,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         value={paymentConfig.gatewayUrl}
                         onChange={(e) => setPaymentConfig({ ...paymentConfig, gatewayUrl: e.target.value })}
                         className="w-full px-3 py-2 bg-[#12110e] border border-stone-700 rounded-lg text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
-                        required
                       />
                     </div>
                   </div>

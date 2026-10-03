@@ -5,6 +5,8 @@ export interface PaymentSettings {
   gatewayUrl: string;
   abaApiKey: string;
   abaMerchantId: string;
+  abaAccount: string;
+  abaAccountName: string;
   bakongToken: string;
   bakongUid: string;
   bakongName: string;
@@ -16,6 +18,8 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   gatewayUrl: 'https://khmer-system.com',
   abaApiKey: 'PK_7213c309db731dc63fe1e1faed0a971ef8de5612',
   abaMerchantId: 'Yuqg4u',
+  abaAccount: 'sokhin_sory@abaa',
+  abaAccountName: 'SORY SOKHIN',
   bakongToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMmY4NDM5YjkwNDEwNDUwNyJ9LCJpYXQiOjE3Nzc5NjA1MjMsImV4cCI6MTc4NTczNjUzM30.jbSLWaRmlRyyh9txBw3B5b6ThL0n4VrCFgRkhfWyASw',
   bakongUid: 'sokhin_sory@bkrt',
   bakongName: 'SORY SOKHIN',
@@ -186,8 +190,20 @@ export async function createPaymentQR(
   }
 
   // 2. Direct NBC-compliant KHQR generation fallback
-  const account = (settings.bakongUid || 'sokhin_sory@bkrt').trim();
-  const merchantName = (settings.bakongName || settings.botName || 'SORY SOKHIN').trim();
+  let account = '';
+  let merchantName = '';
+
+  if (selectedProvider === 'aba') {
+    // ABA Bank account: Uses @abaa domain so banking apps recognize ABA Bank
+    const rawAba = (settings.abaAccount || settings.bakongUid?.replace(/@.*$/, '@abaa') || 'sokhin_sory@abaa').trim();
+    account = rawAba.includes('@') ? rawAba : `${rawAba}@abaa`;
+    merchantName = (settings.abaAccountName || settings.bakongName || settings.botName || 'SORY SOKHIN').trim();
+  } else {
+    // Bakong Wallet: Uses @bkrt domain
+    account = (settings.bakongUid || 'sokhin_sory@bkrt').trim();
+    merchantName = (settings.bakongName || settings.botName || 'SORY SOKHIN').trim();
+  }
+
   const qrString = generateBakongKHQRString(
     account,
     merchantName,
