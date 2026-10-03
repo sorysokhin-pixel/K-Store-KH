@@ -449,8 +449,13 @@ export async function checkKhmerTopupBalance(apiKey?: string): Promise<{
       body: JSON.stringify({ apiKey: key }),
     });
 
-    const data = await res.json();
-    if (res.ok && data.ok) {
+    let data: any = null;
+    try {
+      data = await res.json();
+    } catch {
+      return { ok: false, error: 'Server response invalid or unavailable' };
+    }
+    if (res.ok && data && data.ok) {
       saveStoredKhmerTopupSettings({
         balance: data.balance,
         currency: data.currency,
@@ -465,7 +470,7 @@ export async function checkKhmerTopupBalance(apiKey?: string): Promise<{
         currency: data.currency,
       };
     }
-    return { ok: false, error: data.error || data.message || 'Failed to check balance' };
+    return { ok: false, error: data?.error || data?.message || 'Failed to check balance' };
   } catch (err: any) {
     if (err?.name === 'AbortError') return { ok: false, error: 'Aborted' };
     return { ok: false, error: err.message || 'Network error' };
@@ -522,8 +527,13 @@ export async function syncKhmerTopupCatalog(
       body: JSON.stringify({ apiKey: key || '' }),
     });
 
-    const data = await res.json();
-    if (res.ok && (data.games || data.ok)) {
+    let data: any = null;
+    try {
+      data = await res.json();
+    } catch {
+      return { ok: false, error: 'Server response invalid or unavailable' };
+    }
+    if (res.ok && (data?.games || data?.ok)) {
       const rawGames: any[] = data.games || [];
       const transformed = convertKhmerTopupToGameItems(rawGames, profitMargin);
 

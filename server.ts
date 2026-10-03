@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import https from 'https';
 import fs from 'fs';
+import cachedCatalogData from './cached_khmer_catalog.json';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,6 +12,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+// Normalize Vercel serverless request path
+app.use((req, res, next) => {
+  const orig =
+    (req.headers['x-matched-path'] as string) ||
+    (req.headers['x-forwarded-uri'] as string) ||
+    (req.headers['x-now-route-path'] as string);
+  if (orig && typeof orig === 'string' && orig.startsWith('/api')) {
+    req.url = orig;
+  }
+  next();
+});
 
 // In-memory runtime settings initialized with live credentials from Angkor SMM
 let paymentSettings = {
@@ -465,7 +478,7 @@ function makeKhmerTopupRequest(
 }
 
 // In-memory catalog of live games & packages from https://khmer-topup.com
-let cachedLiveGames: any[] = [];
+let cachedLiveGames: any[] = Array.isArray(cachedCatalogData) ? [...cachedCatalogData] : [];
 
 // Try to load cached catalog on startup
 const possibleCachePaths = [
@@ -718,10 +731,7 @@ setTimeout(() => {
 }, 1000);
 
 // Endpoint 1: Get complete live catalog directly
-app.get('/api/khmer-topup/live-catalog', async (req, res) => {
-  if (cachedLiveGames.length === 0) {
-    await scrapeLiveKhmerTopup();
-  }
+app.get('/api/khmer-topup/live-catalog', (req, res) => {
   res.json({
     ok: true,
     games: cachedLiveGames,
@@ -741,7 +751,7 @@ app.post('/api/khmer-topup/sync-now', async (req, res) => {
       totalPackages: updated.reduce((acc, g) => acc + (g.packages?.length || 0), 0),
     });
   } catch (err: any) {
-    res.status(500).json({ ok: false, error: err.message, fallbackGames: cachedLiveGames });
+    res.json({ ok: false, error: err.message, fallbackGames: cachedLiveGames });
   }
 });
 
@@ -769,12 +779,12 @@ app.post('/api/khmer-topup/me', async (req, res) => {
     const { apiKey } = req.body;
     if (apiKey) khmerTopupSettings.apiKey = apiKey;
     const result = await makeKhmerTopupRequest('me', 'GET', null, apiKey);
-    if (result.username || result.balance !== undefined) {
+    if (result && (result.username || result.balance !== undefined)) {
       return res.json({ ok: true, ...result });
     }
-    return res.status(result.statusCode || 400).json({ ok: false, ...result });
+    return res.json({ ok: false, error: result?.message || result?.error || 'Invalid API Key or balance not available', ...result });
   } catch (err: any) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.json({ ok: false, error: err.message || 'API connection failed' });
   }
 });
 
@@ -789,16 +799,9 @@ app.post('/api/khmer-topup/games', async (req, res) => {
         return res.json({ ok: true, games: result.games || result, source: 'official_api' });
       }
     }
-    // If no API key or official API returned 401, return live scraped catalog
-    if (cachedLiveGames.length === 0) {
-      await scrapeLiveKhmerTopup();
-    }
-    return res.json({ ok: true, games: cachedLiveGames, source: 'live_scraped' });
+    return res.json({ ok: true, games: cachedLiveGames, source: 'cached' });
   } catch (err: any) {
-    if (cachedLiveGames.length > 0) {
-      return res.json({ ok: true, games: cachedLiveGames, source: 'cached' });
-    }
-    res.status(500).json({ ok: false, error: err.message });
+    return res.json({ ok: true, games: cachedLiveGames, source: 'cached' });
   }
 });
 
@@ -1043,4 +1046,7 @@ if (!process.env.VERCEL) {
   startServer();
 }
 
-export default app;
+export default function handler(req: any, res: any) {
+  return app(req, res);
+}
+export { app };
