@@ -309,29 +309,49 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     setIsSavingProduct(true);
     try {
+      const rawCat = (productForm.category || 'panel').trim();
+      const catKey = rawCat.toLowerCase();
       const totalStock = (productForm.packages || []).reduce((sum, pkg) => sum + (pkg.stock ?? 100), 0);
       const prodToSave: GameItem = {
         id: productForm.id || `product-${Date.now()}`,
         title: productForm.title || 'Game Product',
         titleKh: productForm.titleKh || productForm.title || 'Game Product',
-        category: (productForm.category as any) || 'featured',
+        category: catKey as any,
+        customCategoryId: catKey,
+        isCustom: true,
+        isHot: true,
         badge: productForm.badge || 'TOPUP',
         badgeKh: productForm.badgeKh || productForm.badge || 'TOPUP',
         badgeType: 'vip',
-        icon: '🎮',
+        icon: catKey.includes('panel') ? '⚡' : '🎮',
         coverImage: productForm.coverImage,
         needsZoneId: productForm.needsZoneId || false,
         packages: productForm.packages || [],
         stockCount: totalStock,
       };
 
+      // Automatically register category in CategoryNav
+      addStoredCategory({
+        id: catKey,
+        name: rawCat.toUpperCase(),
+        nameKh: rawCat.toUpperCase(),
+        icon: catKey.includes('panel') ? '⚡' : '🎮',
+      });
+
       await saveProduct(prodToSave);
-      // Also sync to server API for cross-device persistence
+
+      // Sync to server API for cross-device persistence
       fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prodToSave),
       }).catch(() => {});
+
+      // Dispatch event so App.tsx and CategoryNav update instantaneously
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kstore_product_updated', { detail: prodToSave }));
+      }
+
       setEditingProduct(null);
     } catch (err) {
       console.error('Failed to save product:', err);
@@ -344,6 +364,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (confirm('តើអ្នកពិតជាចង់លុប Product នេះមែនទេ?')) {
       await deleteProduct(prodId);
       fetch(`/api/admin/products/${prodId}`, { method: 'DELETE' }).catch(() => {});
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kstore_product_deleted', { detail: prodId }));
+      }
     }
   };
 

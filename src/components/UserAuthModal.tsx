@@ -36,10 +36,119 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
   const [privateNote, setPrivateNote] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // 1. Google 1-Click Authentication (Firebase / Google Cloud OAuth)
+  // Official Google OAuth Web Client ID created by User
+  const GOOGLE_CLIENT_ID = '1004848278056-c0rkhstc1dv9tkq014vjjtfu8lqeqb6v.apps.googleusercontent.com';
+
+  // Initialize Google Identity Services (GSI) on modal mount
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+      try {
+        (window as any).google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (response: any) => {
+            if (response && response.credential) {
+              try {
+                // Decode JWT ID token payload
+                const base64Url = response.credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(
+                  atob(base64)
+                    .split('')
+                    .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join('')
+                );
+                const googlePayload = JSON.parse(jsonPayload);
+                if (googlePayload && googlePayload.email) {
+                  const profile = await upsertUserProfile({
+                    uid: googlePayload.sub || `google-${Date.now()}`,
+                    email: googlePayload.email,
+                    displayName: googlePayload.name || googlePayload.email.split('@')[0],
+                    photoURL: googlePayload.picture || '',
+                    role: 'user',
+                  });
+                  localStorage.setItem('kstore_user_session', JSON.stringify(profile));
+                  await logActivity(
+                    'USER_LOGIN_GOOGLE',
+                    `User ${profile.email} logged in via Google Identity Services`,
+                    'security',
+                    { uid: profile.uid, email: profile.email }
+                  );
+                  onUserChanged(profile);
+                  onClose();
+                }
+              } catch (jwtErr) {
+                console.warn('Google JWT parse error:', jwtErr);
+              }
+            }
+          },
+        });
+      } catch (gsiErr) {
+        console.warn('GSI init notice:', gsiErr);
+      }
+    }
+  }, []);
+
+  // 1. Google 1-Click Authentication (Real Google OAuth Client / Firebase popup fallback)
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setErrorMsg('');
+
+    // Strategy A: Google OAuth 2.0 Token Client (Official Web Client)
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.oauth2) {
+      try {
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'email profile openid',
+          callback: async (tokenResp: any) => {
+            if (tokenResp && tokenResp.access_token) {
+              try {
+                const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResp.access_token}` },
+                });
+                const gUser = await userRes.json();
+                if (gUser && gUser.email) {
+                  const profile = await upsertUserProfile({
+                    uid: gUser.sub || `google-${Date.now()}`,
+                    email: gUser.email,
+                    displayName: gUser.name || gUser.email.split('@')[0],
+                    photoURL: gUser.picture || '',
+                    role: 'user',
+                  });
+                  localStorage.setItem('kstore_user_session', JSON.stringify(profile));
+                  await logActivity(
+                    'USER_LOGIN_GOOGLE',
+                    `User ${profile.email} logged in via Google OAuth 2.0 Client`,
+                    'security',
+                    { uid: profile.uid, email: profile.email }
+                  );
+                  onUserChanged(profile);
+                  onClose();
+                  setLoading(false);
+                  return;
+                }
+              } catch (fetchErr) {
+                console.warn('Userinfo fetch error:', fetchErr);
+              }
+            }
+            setLoading(false);
+          },
+          error_callback: async (err: any) => {
+            console.warn('Google OAuth token error, falling back to Firebase:', err);
+            await fallbackFirebaseGoogleSignIn();
+          },
+        });
+        tokenClient.requestAccessToken();
+        return;
+      } catch (oauthErr) {
+        console.warn('Token client launch error, using Firebase popup:', oauthErr);
+      }
+    }
+
+    // Strategy B: Firebase Google Auth popup fallback
+    await fallbackFirebaseGoogleSignIn();
+  };
+
+  const fallbackFirebaseGoogleSignIn = async () => {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
@@ -56,7 +165,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
 
       await logActivity(
         'USER_LOGIN_GOOGLE',
-        `User ${profile.email} logged in via Google Cloud Auth`,
+        `User ${profile.email} logged in via Google Auth popup`,
         'security',
         { uid: profile.uid, email: profile.email }
       );
@@ -68,17 +177,11 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
       if (err.code === 'auth/popup-closed-by-user') {
         setErrorMsg(lang === 'kh' ? 'ផ្ទាំង Login ត្រូវបានបិទ' : 'Login window was closed');
       } else {
-        // Fallback for demo/in-app browsers
-        const demoEmail = 'gamer.kh@gmail.com';
-        const profile = await upsertUserProfile({
-          uid: 'uid-google-' + Date.now(),
-          email: demoEmail,
-          displayName: 'Gamer KH',
-          role: 'user',
-        });
-        localStorage.setItem('kstore_user_session', JSON.stringify(profile));
-        onUserChanged(profile);
-        onClose();
+        setErrorMsg(
+          lang === 'kh'
+            ? 'មានបញ្ហាក្នុងការភ្ជាប់ Google Account សូមសាកល្បងម្ដងទៀត ឬប្រើ Email'
+            : 'Google Sign-In error. Please try again or sign in with Email.'
+        );
       }
     } finally {
       setLoading(false);

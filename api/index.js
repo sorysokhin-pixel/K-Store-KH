@@ -31226,7 +31226,22 @@ app.post("/api/admin/verify", (req, res) => {
   const isDefaultMatch = inUser === "admin" && inCode === "888888" || inUser === "sorysokhin" && inCode === "123456";
   res.json({ ok: true, isValid: isDefaultMatch });
 });
+var CUSTOM_PRODS_FILE = path.join(process.cwd(), "custom_products.json");
 var customServerProducts = [];
+try {
+  if (fs.existsSync(CUSTOM_PRODS_FILE)) {
+    const raw = fs.readFileSync(CUSTOM_PRODS_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) customServerProducts = parsed;
+  }
+} catch (_) {
+}
+function persistCustomProductsToFile() {
+  try {
+    fs.writeFileSync(CUSTOM_PRODS_FILE, JSON.stringify(customServerProducts, null, 2), "utf-8");
+  } catch (_) {
+  }
+}
 app.get("/api/admin/products", (req, res) => {
   res.json({ ok: true, products: customServerProducts });
 });
@@ -31239,6 +31254,7 @@ app.post("/api/admin/products", (req, res) => {
     } else {
       customServerProducts.push(product);
     }
+    persistCustomProductsToFile();
     return res.json({ ok: true, products: customServerProducts });
   }
   res.status(400).json({ ok: false, error: "Invalid product data" });
@@ -31246,6 +31262,7 @@ app.post("/api/admin/products", (req, res) => {
 app.delete("/api/admin/products/:id", (req, res) => {
   const { id } = req.params;
   customServerProducts = customServerProducts.filter((p) => p.id !== id);
+  persistCustomProductsToFile();
   res.json({ ok: true, products: customServerProducts });
 });
 var khmerTopupSettings = {

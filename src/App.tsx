@@ -213,7 +213,23 @@ export default function App() {
           batchSyncGamesToFirestore(res.games).catch((e) => console.warn('Firestore sync background:', e));
         }
 
-        // Fetch custom products stored on Server API for cross-device synchronization
+        // 1. Immediately read local custom products from localStorage
+        try {
+          const localCustom = localStorage.getItem('kstore_custom_products');
+          if (localCustom) {
+            const parsed = JSON.parse(localCustom);
+            if (isMounted && Array.isArray(parsed) && parsed.length > 0) {
+              setCloudProducts((prev) => {
+                const map = new Map<string, GameItem>();
+                prev.forEach((p) => map.set(p.id, p));
+                parsed.forEach((p: GameItem) => map.set(p.id, p));
+                return Array.from(map.values());
+              });
+            }
+          }
+        } catch (_) {}
+
+        // 2. Fetch custom products stored on Server API for cross-device synchronization
         try {
           const apiProdRes = await fetch('/api/admin/products');
           if (apiProdRes.ok) {
@@ -237,6 +253,35 @@ export default function App() {
     loadCatalog();
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  // Listen for admin product updates in real-time
+  useEffect(() => {
+    const handleProdUpdated = (e: any) => {
+      const updated = e.detail as GameItem;
+      if (updated && updated.id) {
+        setCloudProducts((prev) => {
+          const map = new Map<string, GameItem>();
+          prev.forEach((p) => map.set(p.id, p));
+          map.set(updated.id, updated);
+          return Array.from(map.values());
+        });
+        setCustomCategories(getStoredCategories());
+      }
+    };
+    const handleProdDeleted = (e: any) => {
+      const prodId = e.detail as string;
+      if (prodId) {
+        setCloudProducts((prev) => prev.filter((p) => p.id !== prodId));
+        setCustomCategories(getStoredCategories());
+      }
+    };
+    window.addEventListener('kstore_product_updated', handleProdUpdated);
+    window.addEventListener('kstore_product_deleted', handleProdDeleted);
+    return () => {
+      window.removeEventListener('kstore_product_updated', handleProdUpdated);
+      window.removeEventListener('kstore_product_deleted', handleProdDeleted);
     };
   }, []);
 
@@ -349,6 +394,9 @@ export default function App() {
   const activeProductsList = [...cloudProducts]
     .filter((p) => !isMockProduct(p))
     .sort((a, b) => {
+      // Prioritize custom products added by admin so they appear prominently at the top
+      if (a.isCustom && !b.isCustom) return -1;
+      if (!a.isCustom && b.isCustom) return 1;
       const pA = POPULAR_ORDER[a.id] ?? a.priority ?? 999;
       const pB = POPULAR_ORDER[b.id] ?? b.priority ?? 999;
       if (pA !== pB) return pA - pB;
@@ -358,12 +406,27 @@ export default function App() {
   // Filter games
   const filteredGames = activeProductsList.filter((game) => {
     let matchesCategory = true;
-    if (selectedCategory === 'all') {
+    const gCat = (game.category || '').toLowerCase().trim();
+    const gCustomCat = (game.customCategoryId || '').toLowerCase().trim();
+    const sCat = selectedCategory.toLowerCase().trim();
+
+    if (sCat === 'all') {
       matchesCategory = true;
-    } else if (selectedCategory === 'featured') {
-      matchesCategory = game.category === 'featured' || (POPULAR_ORDER[game.id] && POPULAR_ORDER[game.id] <= 12) || Boolean(game.isHot);
+    } else if (sCat === 'featured') {
+      // Show in Featured: featured games, top 12 popular games, isHot games, OR ANY custom admin products!
+      matchesCategory =
+        gCat === 'featured' ||
+        (POPULAR_ORDER[game.id] && POPULAR_ORDER[game.id] <= 12) ||
+        Boolean(game.isHot) ||
+        Boolean(game.isCustom) ||
+        Boolean(game.customCategoryId) ||
+        gCat.includes('panel');
     } else {
-      matchesCategory = game.category === selectedCategory || game.id === selectedCategory;
+      matchesCategory =
+        gCat === sCat ||
+        gCustomCat === sCat ||
+        game.id.toLowerCase() === sCat ||
+        (sCat === 'panel' && (gCat.includes('panel') || gCustomCat.includes('panel')));
     }
 
     let matchesSearch = true;
@@ -373,7 +436,8 @@ export default function App() {
         game.title.toLowerCase().includes(q) ||
         game.titleKh.toLowerCase().includes(q) ||
         game.id.toLowerCase().includes(q) ||
-        Boolean(game.badge?.toLowerCase().includes(q));
+        Boolean(game.badge?.toLowerCase().includes(q)) ||
+        Boolean(game.category?.toLowerCase().includes(q));
     }
 
     let matchesPrice = true;

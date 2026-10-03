@@ -377,12 +377,10 @@ export function isMockProduct(p: any): boolean {
     return true;
   }
 
-  // 2. Official Khmer-TopUp games
+  // 2. Official Khmer-TopUp games or proxy images
   if (OFFICIAL_KHMER_GAME_IDS.has(p.id) || OFFICIAL_KHMER_GAME_IDS.has(p.externalSlug)) {
     return false;
   }
-
-  // 3. Khmer-TopUp official assets or proxy
   if (
     typeof p.coverImage === 'string' &&
     (p.coverImage.includes('khmer-topup.com') ||
@@ -392,7 +390,7 @@ export function isMockProduct(p: any): boolean {
     return false;
   }
 
-  // 4. Products explicitly created or customized by Admin
+  // 3. Products created or customized by Admin (e.g. Trollmodz, Panel, etc.)
   if (
     p.isCustom ||
     p.customCategoryId ||
@@ -401,8 +399,8 @@ export function isMockProduct(p: any): boolean {
     return false;
   }
 
-  // Any other legacy sample/mock data from previous seed
-  return true;
+  // Preserve all other valid products added by user/admin
+  return false;
 }
 
 export async function purgeMockSampleProducts(): Promise<number> {
@@ -565,8 +563,20 @@ export async function saveProduct(product: GameItem): Promise<void> {
   const totalStock = product.packages.reduce((sum: number, pkg: GamePackage) => sum + (pkg.stock ?? 100), 0);
   const updatedProduct: GameItem = {
     ...product,
+    isCustom: true,
     stockCount: totalStock,
   };
+
+  // Sync to local storage for immediate offline/client retention
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('kstore_custom_products');
+      const list: GameItem[] = raw ? JSON.parse(raw) : [];
+      const filtered = list.filter((p) => p.id !== product.id);
+      filtered.push(updatedProduct);
+      localStorage.setItem('kstore_custom_products', JSON.stringify(filtered));
+    } catch (_) {}
+  }
 
   const cleanData = sanitizeForFirestore(updatedProduct);
 
@@ -749,6 +759,16 @@ export async function batchSyncGamesToFirestore(games: GameItem[]): Promise<numb
 
 export async function deleteProduct(productId: string): Promise<void> {
   const path = `products/${productId}`;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('kstore_custom_products');
+      if (raw) {
+        const list: GameItem[] = JSON.parse(raw);
+        const filtered = list.filter((p) => p.id !== productId);
+        localStorage.setItem('kstore_custom_products', JSON.stringify(filtered));
+      }
+    } catch (_) {}
+  }
   try {
     await setDoc(doc(db, 'products', productId), { deleted: true }, { merge: true });
     await logActivity('PRODUCT_DELETED', `Admin deleted product ${productId}`, 'warning');

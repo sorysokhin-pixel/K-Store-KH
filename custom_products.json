@@ -1,0 +1,51 @@
+[
+  {
+    "id": "product-trollmodz",
+    "title": "Trollmodz",
+    "titleKh": "Trollmodz (បាញ់ចូលក្បាល)",
+    "category": "panel",
+    "customCategoryId": "panel",
+    "badge": "PANEL",
+    "badgeKh": "ផែននែល VIP",
+    "badgeType": "vip",
+    "icon": "⚡",
+    "coverImage": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop&q=80",
+    "needsZoneId": false,
+    "isCustom": true,
+    "isHot": true,
+    "stockCount": 300,
+    "packages": [
+      {
+        "id": "pkg-troll-1d",
+        "name": "1 Day VIP Key",
+        "nameKh": "១ ថ្ងៃ (1 Day VIP)",
+        "amount": "1 Day Access",
+        "priceUsd": 2.5,
+        "stock": 150,
+        "popular": true,
+        "bonus": "POPULAR",
+        "keys": ["TROLL-VIP-1D-8823", "TROLL-VIP-1D-9912"]
+      },
+      {
+        "id": "pkg-troll-7d",
+        "name": "7 Days VIP Key",
+        "nameKh": "៧ ថ្ងៃ (7 Days VIP)",
+        "amount": "7 Days Access",
+        "priceUsd": 7.0,
+        "stock": 100,
+        "bonus": "BEST VALUE",
+        "keys": ["TROLL-VIP-7D-5511", "TROLL-VIP-7D-4422"]
+      },
+      {
+        "id": "pkg-troll-30d",
+        "name": "30 Days VIP Key",
+        "nameKh": "៣០ ថ្ងៃ (30 Days Monthly)",
+        "amount": "30 Days Access",
+        "priceUsd": 18.0,
+        "stock": 50,
+        "bonus": "PRO GAMER",
+        "keys": ["TROLL-VIP-30D-7700"]
+      }
+    ]
+  }
+]

@@ -8,6 +8,8 @@ export interface CustomCategory {
 export const DEFAULT_CATEGORIES: CustomCategory[] = [
   { id: 'featured', name: 'Featured Games', nameKh: 'ពេញនិយម (Featured)', icon: '🔥' },
   { id: 'all', name: 'All Games', nameKh: 'ហ្គេមទាំងអស់', icon: '🎮' },
+  { id: 'panel', name: 'Panel / Mod', nameKh: 'ផែននែល (Panel)', icon: '⚡' },
+  { id: 'robux', name: 'Robux', nameKh: 'Robux', icon: '💎' },
 ];
 
 const CAT_STORAGE_KEY = 'kstore_custom_categories';
@@ -19,8 +21,12 @@ export function getStoredCategories(): CustomCategory[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const cleaned = parsed.filter((c: any) => c.id !== 'panel' && c.id !== 'robux');
-        if (cleaned.length >= 2) return cleaned;
+        const map = new Map<string, CustomCategory>();
+        DEFAULT_CATEGORIES.forEach((c) => map.set(c.id.toLowerCase(), c));
+        parsed.forEach((c: CustomCategory) => {
+          if (c && c.id) map.set(c.id.toLowerCase(), c);
+        });
+        return Array.from(map.values());
       }
     }
   } catch (_) {}
@@ -38,15 +44,18 @@ export function saveStoredCategories(categories: CustomCategory[]): CustomCatego
 
 export function addStoredCategory(newCat: CustomCategory): CustomCategory[] {
   const current = getStoredCategories();
-  const exists = current.some((c) => c.id === newCat.id);
-  const updated = exists ? current.map((c) => (c.id === newCat.id ? newCat : c)) : [...current, newCat];
+  const normalizedId = newCat.id.toLowerCase().trim();
+  const exists = current.some((c) => c.id.toLowerCase().trim() === normalizedId);
+  const updated = exists
+    ? current.map((c) => (c.id.toLowerCase().trim() === normalizedId ? { ...c, ...newCat, id: normalizedId } : c))
+    : [...current, { ...newCat, id: normalizedId }];
   return saveStoredCategories(updated);
 }
 
 export function deleteStoredCategory(catId: string): CustomCategory[] {
   const current = getStoredCategories();
-  // Prevent deleting default core categories
-  if (catId === 'featured' || catId === 'all') return current;
-  const updated = current.filter((c) => c.id !== catId);
+  const normalizedId = catId.toLowerCase().trim();
+  if (normalizedId === 'featured' || normalizedId === 'all') return current;
+  const updated = current.filter((c) => c.id.toLowerCase().trim() !== normalizedId);
   return saveStoredCategories(updated);
 }
